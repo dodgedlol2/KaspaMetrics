@@ -1,0 +1,36 @@
+credentials:
+  usernames:
+    admin:
+      email: admin@kaspalytics.com
+      first_name: Admin
+      last_name: User
+      password: admin123  # Will be auto-hashed by streamlit-authenticator
+      subscription: pro
+      failed_login_attempts: 0
+      logged_in: false
+    premium_user:
+      email: premium@example.com
+      first_name: Premium
+      last_name: User
+      password: premium123  # Will be auto-hashed by streamlit-authenticator
+      subscription: premium
+      failed_login_attempts: 0
+      logged_in: false
+    free_user:
+      email: free@example.com
+      first_name: Free
+      last_name: User
+      password: free123  # Will be auto-hashed by streamlit-authenticator
+      subscription: free
+      failed_login_attempts: 0
+      logged_in: false
+
+cookie:
+  name: kaspa_analytics_auth
+  key: kaspa_secret_key_change_in_production  # CHANGE THIS IN PRODUCTION!
+  expiry_days: 30
+
+preauthorized:
+  - admin@kaspalytics.com
+  - newuser@kaspalytics.com
+  - beta@kaspalytics.com

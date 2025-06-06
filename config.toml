@@ -1,0 +1,53 @@
+# Streamlit Configuration for Kaspa Analytics Pro
+
+[global]
+# Development mode
+developmentMode = false
+
+# Data directory
+dataDir = ".streamlit"
+
+[logger]
+# Logging level
+level = "info"
+
+[client]
+# Whether to enable CORS
+caching = true
+
+# Connection timeout
+toolbarMode = "viewer"
+
+[server]
+# Port configuration
+port = 8501
+baseUrlPath = ""
+
+# Enable CORS
+enableCORS = false
+enableXsrfProtection = true
+
+# File upload settings
+maxUploadSize = 200
+maxMessageSize = 200
+
+# Enable websocket compression
+enableWebsocketCompression = false
+
+[browser]
+# Whether to automatically open browser
+gatherUsageStats = false
+
+[theme]
+# App theming
+primaryColor = "#70C7BA"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"
+
+[runner]
+# Script runner settings
+magicEnabled = true
+installTracer = false
+fixMatplotlib = true
