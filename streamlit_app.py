@@ -1,6 +1,6 @@
 """
 Kaspa Analytics Pro - Main Homepage
-Entry point for the multi-page Streamlit application
+Entry point for the multi-page Streamlit application with st.navigation
 """
 
 import streamlit as st
@@ -22,7 +22,6 @@ from utils.auth import get_current_user, is_authenticated
 from utils.data import fetch_kaspa_price_data, get_market_stats
 from utils.ui import (
     render_page_header, 
-    render_sidebar_navigation, 
     show_login_prompt,
     apply_custom_css,
     render_footer
@@ -81,25 +80,144 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-def main():
-    """Main homepage function"""
-    
-    # Get current user and app config
+def get_navigation_pages():
+    """Define navigation structure based on user subscription"""
     user = get_current_user()
-    config = get_app_config()
+    subscription = user['subscription']
+    
+    # Define pages based on subscription level
+    pages = []
+    
+    # Home page (always available)
+    pages.append(st.Page("streamlit_app.py", title="🏠 Dashboard", icon="🏠"))
+    
+    # Spot Analysis Section
+    spot_pages = [
+        st.Page("pages/price_charts.py", title="📈 Price Charts", icon="📈"),
+    ]
+    
+    # Add future spot pages when ready
+    # spot_pages.append(st.Page("pages/volume_analysis.py", title="📊 Volume", icon="📊"))
+    # spot_pages.append(st.Page("pages/market_cap.py", title="💰 Market Cap", icon="💰"))
+    
+    # On-Chain Metrics Section (Premium+ only)
+    onchain_pages = []
+    if subscription in ['premium', 'pro']:
+        onchain_pages = [
+            st.Page("pages/network_metrics.py", title="🌐 Network Metrics", icon="🌐"),
+        ]
+        # Add future on-chain pages when ready
+        # onchain_pages.append(st.Page("pages/active_addresses.py", title="👥 Active Addresses", icon="👥"))
+        # onchain_pages.append(st.Page("pages/addresses_by_balance.py", title="💰 Address Balances", icon="💰"))
+    
+    # Miners Section (Premium+ only)
+    miners_pages = []
+    if subscription in ['premium', 'pro']:
+        miners_pages = [
+            st.Page("pages/power_law.py", title="📊 Power Law", icon="📊"),
+        ]
+        # Add future mining pages when ready
+        # miners_pages.append(st.Page("pages/hashrate.py", title="⛏️ Hashrate", icon="⛏️"))
+        # miners_pages.append(st.Page("pages/difficulty.py", title="🎯 Difficulty", icon="🎯"))
+    
+    # Account Section
+    account_pages = [
+        st.Page("pages/authentication.py", title="⚙️ Account", icon="⚙️"),
+    ]
+    
+    # Add Data Export for Premium+ users
+    if subscription in ['premium', 'pro']:
+        account_pages.append(st.Page("pages/data_export.py", title="📋 Data Export", icon="📋"))
+    
+    # Add Admin Panel for admin users
+    if user['username'] == 'admin':
+        account_pages.append(st.Page("pages/admin_panel.py", title="👑 Admin Panel", icon="👑"))
+    
+    # Build navigation structure
+    navigation_dict = {
+        "💎 Kaspa Analytics": pages,
+        "📊 Spot Analysis": spot_pages,
+    }
+    
+    # Add sections based on subscription
+    if onchain_pages:
+        navigation_dict["🌐 On-Chain Metrics"] = onchain_pages
+    
+    if miners_pages:
+        navigation_dict["⛏️ Miners"] = miners_pages
+    
+    navigation_dict["👤 Account"] = account_pages
+    
+    return navigation_dict
+
+def main():
+    """Main application with navigation"""
+    
+    # Get current user and check authentication
+    user = get_current_user()
     is_auth = is_authenticated()
     
-    # Render sidebar navigation
-    render_sidebar_navigation(user)
+    # Create navigation
+    navigation_pages = get_navigation_pages()
+    
+    # Set up navigation
+    pg = st.navigation(navigation_pages)
+    
+    # Add user info to sidebar
+    with st.sidebar:
+        st.markdown("---")
+        
+        # User status
+        if user['username'] != 'public':
+            st.markdown(f"**👤 {user['name']}**")
+            st.markdown(f'<span class="subscription-badge badge-{user["subscription"]}">{user["subscription"].upper()}</span>', unsafe_allow_html=True)
+        else:
+            st.markdown("**👤 Public Access**")
+            st.markdown('<span class="subscription-badge badge-public">PUBLIC</span>', unsafe_allow_html=True)
+        
+        # Quick stats
+        render_sidebar_stats()
+    
+    # Run the selected page
+    pg.run()
+
+def render_sidebar_stats():
+    """Render quick stats in sidebar"""
+    from utils.data import get_market_stats, fetch_kaspa_price_data
+    
+    st.markdown("---")
+    st.markdown("### ⚡ Quick Stats")
+    
+    try:
+        df = fetch_kaspa_price_data(7)  # Last 7 days for sidebar
+        if not df.empty:
+            stats = get_market_stats(df)
+            
+            st.metric(
+                "KAS Price", 
+                f"${stats.get('current_price', 0):.4f}",
+                delta=f"{stats.get('price_change_24h', 0):+.2f}%"
+            )
+            
+            st.metric(
+                "24h Volume", 
+                f"${stats.get('volume_24h', 0)/1000000:.1f}M"
+            )
+        else:
+            st.info("Unable to load market data")
+    except Exception as e:
+        st.error("Market data unavailable")
+
+def render_dashboard_content():
+    """Render dashboard content when on home page"""
+    user = get_current_user()
+    is_auth = is_authenticated()
     
     # Main content
     if is_auth:
         render_authenticated_homepage(user)
     else:
         render_public_homepage()
-    
-    # Footer
-    render_footer()
 
 def render_public_homepage():
     """Public homepage for non-authenticated users"""
@@ -107,8 +225,7 @@ def render_public_homepage():
     # Hero section
     render_page_header(
         "💎 Kaspa Analytics Pro",
-        "Professional blockchain analysis platform for Kaspa (KAS)",
-        show_auth_buttons=True
+        "Professional blockchain analysis platform for Kaspa (KAS)"
     )
     
     # Key metrics showcase
@@ -206,7 +323,7 @@ def render_public_homepage():
             st.write("• Community support")
             
             if st.button("🚀 Get Started Free", key="pricing_free", use_container_width=True, type="primary"):
-                st.switch_page("pages/5_⚙️_Authentication.py")
+                st.switch_page("pages/authentication.py")
     
     with pricing_cols[1]:
         with st.container():
@@ -218,7 +335,7 @@ def render_public_homepage():
             st.write("• Email support")
             
             if st.button("⭐ Upgrade to Premium", key="pricing_premium", use_container_width=True):
-                st.switch_page("pages/5_⚙️_Authentication.py")
+                st.switch_page("pages/authentication.py")
     
     with pricing_cols[2]:
         with st.container():
@@ -230,7 +347,7 @@ def render_public_homepage():
             st.write("• Priority support")
             
             if st.button("👑 Go Pro", key="pricing_pro", use_container_width=True):
-                st.switch_page("pages/5_⚙️_Authentication.py")
+                st.switch_page("pages/authentication.py")
     
     # Call to action
     st.markdown("---")
@@ -244,8 +361,7 @@ def render_authenticated_homepage(user):
     # Welcome header
     render_page_header(
         f"👋 Welcome back, {user['name']}!",
-        f"Your {subscription.title()} Dashboard",
-        show_auth_buttons=False
+        f"Your {subscription.title()} Dashboard"
     )
     
     # Quick stats dashboard
@@ -340,23 +456,23 @@ def render_authenticated_homepage(user):
     
     with action_cols[0]:
         if st.button("📈 Price Charts", key="dash_charts", use_container_width=True):
-            st.switch_page("pages/1_📈_Price_Charts.py")
+            st.switch_page("pages/price_charts.py")
     
     with action_cols[1]:
         if st.button("📊 Power Law Analysis", key="dash_powerlaw", use_container_width=True):
-            st.switch_page("pages/2_📊_Power_Law.py")
+            st.switch_page("pages/power_law.py")
     
     with action_cols[2]:
         if subscription in ['premium', 'pro']:
             if st.button("🌐 Network Metrics", key="dash_network", use_container_width=True):
-                st.switch_page("pages/3_🌐_Network_Metrics.py")
+                st.switch_page("pages/network_metrics.py")
         else:
             st.button("🔒 Network Metrics", disabled=True, use_container_width=True)
     
     with action_cols[3]:
         if subscription in ['premium', 'pro']:
             if st.button("📋 Data Export", key="dash_export", use_container_width=True):
-                st.switch_page("pages/4_📋_Data_Export.py")
+                st.switch_page("pages/data_export.py")
         else:
             st.button("🔒 Data Export", disabled=True, use_container_width=True)
     
@@ -391,7 +507,7 @@ def render_analytics_showcase():
         st.write("• **Volatility Metrics**: Price volatility tracking")
         
         if st.button("🔍 Explore Analytics", key="explore_analytics", use_container_width=True):
-            st.switch_page("pages/2_📊_Power_Law.py")
+            st.switch_page("pages/power_law.py")
     
     with col2:
         st.markdown("#### 🌐 Network Insights")
@@ -401,7 +517,7 @@ def render_analytics_showcase():
         st.write("• **Mining Analytics**: Difficulty and rewards")
         
         if st.button("📊 View Network Data", key="explore_network", use_container_width=True):
-            st.switch_page("pages/3_🌐_Network_Metrics.py")
+            st.switch_page("pages/network_metrics.py")
 
 def render_data_showcase():
     """Show data access features"""
@@ -422,7 +538,7 @@ def render_data_showcase():
         st.write("• **Webhooks**: Real-time notifications")
         
         if st.button("📥 Export Data", key="explore_export", use_container_width=True):
-            st.switch_page("pages/4_📋_Data_Export.py")
+            st.switch_page("pages/data_export.py")
 
 def render_tools_showcase():
     """Show tools and utilities"""
@@ -442,5 +558,11 @@ def render_tools_showcase():
         st.write("• **Team Collaboration**: Share insights")
         st.write("• **Mobile App**: Access anywhere")
 
+# Check if this is the main page being run
 if __name__ == "__main__":
+    # If running the main app, show dashboard content
+    render_dashboard_content()
+    render_footer()
+else:
+    # If imported as a page, run the navigation
     main()
