@@ -1,6 +1,6 @@
 """
 Kaspa Analytics Pro - Main Homepage
-Entry point for the multi-page Streamlit application with st.navigation
+Entry point for the multi-page Streamlit application with sectioned navigation
 """
 
 import streamlit as st
@@ -80,90 +80,61 @@ st.markdown("""
 </script>
 """, unsafe_allow_html=True)
 
-def get_navigation_pages():
-    """Define navigation structure based on user subscription"""
+# Page definitions
+dashboard_page = st.Page("views/dashboard.py", title="🏠 Dashboard", icon="🏠")
+price_charts_page = st.Page("views/price_charts.py", title="📈 Price Charts", icon="📈")
+power_law_page = st.Page("views/power_law.py", title="📊 Power Law", icon="📊")
+network_metrics_page = st.Page("views/network_metrics.py", title="🌐 Network Metrics", icon="🌐")
+data_export_page = st.Page("views/data_export.py", title="📋 Data Export", icon="📋")
+authentication_page = st.Page("views/authentication.py", title="⚙️ Account", icon="⚙️")
+admin_panel_page = st.Page("views/admin_panel.py", title="👑 Admin Panel", icon="👑")
+
+def get_navigation_structure():
+    """Get navigation structure based on user subscription"""
     user = get_current_user()
     subscription = user['subscription']
     
-    # Define pages based on subscription level
-    pages = []
-    
-    # Home page (always available)
-    pages.append(st.Page("streamlit_app.py", title="🏠 Dashboard", icon="🏠"))
-    
-    # Spot Analysis Section
-    spot_pages = [
-        st.Page("pages/price_charts.py", title="📈 Price Charts", icon="📈"),
-    ]
-    
-    # Add future spot pages when ready
-    # spot_pages.append(st.Page("pages/volume_analysis.py", title="📊 Volume", icon="📊"))
-    # spot_pages.append(st.Page("pages/market_cap.py", title="💰 Market Cap", icon="💰"))
-    
-    # On-Chain Metrics Section (Premium+ only)
-    onchain_pages = []
-    if subscription in ['premium', 'pro']:
-        onchain_pages = [
-            st.Page("pages/network_metrics.py", title="🌐 Network Metrics", icon="🌐"),
-        ]
-        # Add future on-chain pages when ready
-        # onchain_pages.append(st.Page("pages/active_addresses.py", title="👥 Active Addresses", icon="👥"))
-        # onchain_pages.append(st.Page("pages/addresses_by_balance.py", title="💰 Address Balances", icon="💰"))
-    
-    # Miners Section (Premium+ only)
-    miners_pages = []
-    if subscription in ['premium', 'pro']:
-        miners_pages = [
-            st.Page("pages/power_law.py", title="📊 Power Law", icon="📊"),
-        ]
-        # Add future mining pages when ready
-        # miners_pages.append(st.Page("pages/hashrate.py", title="⛏️ Hashrate", icon="⛏️"))
-        # miners_pages.append(st.Page("pages/difficulty.py", title="🎯 Difficulty", icon="🎯"))
-    
-    # Account Section
-    account_pages = [
-        st.Page("pages/authentication.py", title="⚙️ Account", icon="⚙️"),
-    ]
-    
-    # Add Data Export for Premium+ users
-    if subscription in ['premium', 'pro']:
-        account_pages.append(st.Page("pages/data_export.py", title="📋 Data Export", icon="📋"))
-    
-    # Add Admin Panel for admin users
-    if user['username'] == 'admin':
-        account_pages.append(st.Page("pages/admin_panel.py", title="👑 Admin Panel", icon="👑"))
-    
-    # Build navigation structure
-    navigation_dict = {
-        "💎 Kaspa Analytics": pages,
-        "📊 Spot Analysis": spot_pages,
+    # Base navigation structure
+    navigation = {
+        "💎 Kaspa Analytics": [dashboard_page],
+        "📊 Spot Analysis": [price_charts_page],
     }
     
-    # Add sections based on subscription
-    if onchain_pages:
-        navigation_dict["🌐 On-Chain Metrics"] = onchain_pages
+    # Add On-Chain section for premium+ users
+    if subscription in ['premium', 'pro']:
+        navigation["🌐 On-Chain Metrics"] = [network_metrics_page]
     
-    if miners_pages:
-        navigation_dict["⛏️ Miners"] = miners_pages
+    # Add Miners section for premium+ users
+    if subscription in ['premium', 'pro']:
+        navigation["⛏️ Miners"] = [power_law_page]
     
-    navigation_dict["👤 Account"] = account_pages
+    # Account section
+    account_pages = [authentication_page]
     
-    return navigation_dict
+    # Add data export for premium+ users
+    if subscription in ['premium', 'pro']:
+        account_pages.append(data_export_page)
+    
+    # Add admin panel for admin user
+    if user['username'] == 'admin':
+        account_pages.append(admin_panel_page)
+    
+    navigation["👤 Account"] = account_pages
+    
+    return navigation
 
 def main():
-    """Main application with navigation"""
+    """Main application entry point"""
     
-    # Get current user and check authentication
-    user = get_current_user()
-    is_auth = is_authenticated()
-    
-    # Create navigation
-    navigation_pages = get_navigation_pages()
+    # Get navigation structure
+    navigation = get_navigation_structure()
     
     # Set up navigation
-    pg = st.navigation(navigation_pages)
+    pg = st.navigation(navigation)
     
     # Add user info to sidebar
+    user = get_current_user()
+    
     with st.sidebar:
         st.markdown("---")
         
@@ -183,8 +154,6 @@ def main():
 
 def render_sidebar_stats():
     """Render quick stats in sidebar"""
-    from utils.data import get_market_stats, fetch_kaspa_price_data
-    
     st.markdown("---")
     st.markdown("### ⚡ Quick Stats")
     
@@ -208,361 +177,5 @@ def render_sidebar_stats():
     except Exception as e:
         st.error("Market data unavailable")
 
-def render_dashboard_content():
-    """Render dashboard content when on home page"""
-    user = get_current_user()
-    is_auth = is_authenticated()
-    
-    # Main content
-    if is_auth:
-        render_authenticated_homepage(user)
-    else:
-        render_public_homepage()
-
-def render_public_homepage():
-    """Public homepage for non-authenticated users"""
-    
-    # Hero section
-    render_page_header(
-        "💎 Kaspa Analytics Pro",
-        "Professional blockchain analysis platform for Kaspa (KAS)"
-    )
-    
-    # Key metrics showcase
-    st.subheader("📊 Live Market Data")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    # Get market data
-    df = fetch_kaspa_price_data()
-    stats = get_market_stats(df) if not df.empty else {}
-    
-    with col1:
-        st.metric(
-            "KAS Price", 
-            f"${stats.get('current_price', 0):.4f}",
-            delta=f"{stats.get('price_change_7d', 0):+.2f}%"
-        )
-    
-    with col2:
-        st.metric(
-            "24h Volume", 
-            f"${stats.get('volume_24h', 0):,.0f}"
-        )
-    
-    with col3:
-        st.metric(
-            "Market Cap", 
-            f"${stats.get('market_cap', 0):.1f}B"
-        )
-    
-    with col4:
-        st.metric(
-            "Network Hash Rate", 
-            f"{stats.get('hash_rate', 0):.2f} EH/s"
-        )
-    
-    # Quick chart preview (7 days for public)
-    if not df.empty:
-        st.subheader("📈 7-Day Price Preview")
-        chart_data = df.tail(7)
-        
-        if PLOTLY_AVAILABLE:
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=chart_data['timestamp'], 
-                y=chart_data['price'],
-                mode='lines',
-                name='KAS Price',
-                line=dict(color='#70C7BA', width=3)
-            ))
-            
-            fig.update_layout(
-                title="Kaspa Price - Last 7 Days (Public Preview)",
-                xaxis_title="Date",
-                yaxis_title="Price (USD)",
-                height=400,
-                template="plotly_white",
-                showlegend=False
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            # Fallback to basic line chart
-            st.line_chart(chart_data.set_index('timestamp')['price'])
-        
-        st.info("📊 Public users see 7-day preview. Create a free account for 30+ days of data!")
-    
-    # Feature showcase
-    st.subheader("🚀 Platform Features")
-    
-    feature_tabs = sac.tabs([
-        sac.TabsItem(label='Analytics', icon='graph-up'),
-        sac.TabsItem(label='Data Access', icon='database'),
-        sac.TabsItem(label='Tools', icon='tools'),
-    ], key='feature_showcase')
-    
-    if feature_tabs == 'Analytics':
-        render_analytics_showcase()
-    elif feature_tabs == 'Data Access':
-        render_data_showcase()
-    else:
-        render_tools_showcase()
-    
-    # Pricing teaser
-    st.subheader("💰 Choose Your Plan")
-    
-    pricing_cols = st.columns(3)
-    
-    with pricing_cols[0]:
-        with st.container():
-            st.markdown("### 🆓 Free")
-            st.markdown("**$0/month**")
-            st.write("• 30-day price history")
-            st.write("• Basic power law analysis")
-            st.write("• Community support")
-            
-            if st.button("🚀 Get Started Free", key="pricing_free", use_container_width=True, type="primary"):
-                st.switch_page("pages/authentication.py")
-    
-    with pricing_cols[1]:
-        with st.container():
-            st.markdown("### ⭐ Premium")
-            st.markdown("**$29/month**")
-            st.write("• Full historical data")
-            st.write("• Advanced analytics")
-            st.write("• Data export")
-            st.write("• Email support")
-            
-            if st.button("⭐ Upgrade to Premium", key="pricing_premium", use_container_width=True):
-                st.switch_page("pages/authentication.py")
-    
-    with pricing_cols[2]:
-        with st.container():
-            st.markdown("### 👑 Pro")
-            st.markdown("**$99/month**")
-            st.write("• Everything in Premium")
-            st.write("• API access")
-            st.write("• Custom models")
-            st.write("• Priority support")
-            
-            if st.button("👑 Go Pro", key="pricing_pro", use_container_width=True):
-                st.switch_page("pages/authentication.py")
-    
-    # Call to action
-    st.markdown("---")
-    show_login_prompt("the full Kaspa Analytics platform")
-
-def render_authenticated_homepage(user):
-    """Authenticated user dashboard"""
-    
-    subscription = user['subscription']
-    
-    # Welcome header
-    render_page_header(
-        f"👋 Welcome back, {user['name']}!",
-        f"Your {subscription.title()} Dashboard"
-    )
-    
-    # Quick stats dashboard
-    col1, col2, col3, col4 = st.columns(4)
-    
-    df = fetch_kaspa_price_data()
-    stats = get_market_stats(df) if not df.empty else {}
-    
-    with col1:
-        st.metric(
-            "KAS Price", 
-            f"${stats.get('current_price', 0):.4f}",
-            delta=f"{stats.get('price_change_24h', 0):+.2f}%"
-        )
-    
-    with col2:
-        st.metric("Your Plan", subscription.title())
-    
-    with col3:
-        if subscription in ['premium', 'pro']:
-            st.metric("Power Law Signal", "Above Trend", "+15%")
-        else:
-            st.metric("Power Law", "🔒 Premium Feature")
-    
-    with col4:
-        st.metric("Active Alerts", "3 Active")
-    
-    # Enhanced chart for authenticated users
-    if not df.empty:
-        st.subheader("📈 Price Analysis Dashboard")
-        
-        # Chart timeframe based on subscription
-        if subscription == 'free':
-            chart_data = df.tail(30)
-            st.info("📊 Free accounts: 30-day data. Upgrade for full historical access!")
-        else:
-            chart_data = df.tail(365)  # 1 year for premium+
-            st.success(f"📊 {subscription.title()} account: Full historical data access")
-        
-        # Create advanced chart
-        fig = go.Figure()
-        
-        # Price line
-        fig.add_trace(go.Scatter(
-            x=chart_data['timestamp'], 
-            y=chart_data['price'],
-            mode='lines',
-            name='KAS Price',
-            line=dict(color='#70C7BA', width=2)
-        ))
-        
-        # Add volume for premium users
-        if subscription in ['premium', 'pro'] and PLOTLY_AVAILABLE:
-            fig.add_trace(go.Scatter(
-                x=chart_data['timestamp'],
-                y=chart_data['volume'] / 1000000,  # Scale volume
-                mode='lines',
-                name='Volume (M)',
-                yaxis='y2',
-                opacity=0.6,
-                line=dict(color='orange')
-            ))
-            
-            # Add secondary y-axis
-            fig.update_layout(
-                yaxis2=dict(
-                    title="Volume (Millions)",
-                    overlaying='y',
-                    side='right',
-                    showgrid=False
-                )
-            )
-        
-        if PLOTLY_AVAILABLE:
-            fig.update_layout(
-                title=f"Kaspa Price Analysis - {subscription.title()} View",
-                xaxis_title="Date",
-                yaxis_title="Price (USD)",
-                height=500,
-                template="plotly_white"
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            # Fallback to basic chart
-            st.line_chart(chart_data.set_index('timestamp')['price'])
-    
-    # Quick actions dashboard
-    st.subheader("⚡ Quick Actions")
-    
-    action_cols = st.columns(4)
-    
-    with action_cols[0]:
-        if st.button("📈 Price Charts", key="dash_charts", use_container_width=True):
-            st.switch_page("pages/price_charts.py")
-    
-    with action_cols[1]:
-        if st.button("📊 Power Law Analysis", key="dash_powerlaw", use_container_width=True):
-            st.switch_page("pages/power_law.py")
-    
-    with action_cols[2]:
-        if subscription in ['premium', 'pro']:
-            if st.button("🌐 Network Metrics", key="dash_network", use_container_width=True):
-                st.switch_page("pages/network_metrics.py")
-        else:
-            st.button("🔒 Network Metrics", disabled=True, use_container_width=True)
-    
-    with action_cols[3]:
-        if subscription in ['premium', 'pro']:
-            if st.button("📋 Data Export", key="dash_export", use_container_width=True):
-                st.switch_page("pages/data_export.py")
-        else:
-            st.button("🔒 Data Export", disabled=True, use_container_width=True)
-    
-    # Recent activity (placeholder)
-    st.subheader("📋 Recent Activity")
-    
-    activity_data = [
-        {"time": "2 hours ago", "action": "Exported price data", "status": "✅"},
-        {"time": "1 day ago", "action": "Created custom alert", "status": "✅"},
-        {"time": "3 days ago", "action": "Viewed power law analysis", "status": "✅"},
-    ]
-    
-    for activity in activity_data:
-        with st.container():
-            col1, col2, col3 = st.columns([2, 4, 1])
-            with col1:
-                st.write(activity["time"])
-            with col2:
-                st.write(activity["action"])
-            with col3:
-                st.write(activity["status"])
-
-def render_analytics_showcase():
-    """Show analytics features"""
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 📊 Advanced Analytics")
-        st.write("• **Power Law Models**: Mathematical price predictions")
-        st.write("• **Technical Indicators**: RSI, MACD, Moving averages")
-        st.write("• **Trend Analysis**: Support/resistance levels")
-        st.write("• **Volatility Metrics**: Price volatility tracking")
-        
-        if st.button("🔍 Explore Analytics", key="explore_analytics", use_container_width=True):
-            st.switch_page("pages/power_law.py")
-    
-    with col2:
-        st.markdown("#### 🌐 Network Insights")
-        st.write("• **Hash Rate Tracking**: Network security metrics")
-        st.write("• **Address Analysis**: Active wallet tracking")
-        st.write("• **Transaction Metrics**: Network usage stats")
-        st.write("• **Mining Analytics**: Difficulty and rewards")
-        
-        if st.button("📊 View Network Data", key="explore_network", use_container_width=True):
-            st.switch_page("pages/network_metrics.py")
-
-def render_data_showcase():
-    """Show data access features"""
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 📈 Real-time Data")
-        st.write("• **Live Price Feeds**: Real-time KAS pricing")
-        st.write("• **Historical Data**: Complete price history")
-        st.write("• **High Frequency**: Minute-by-minute updates")
-        st.write("• **Multiple Exchanges**: Aggregated pricing data")
-    
-    with col2:
-        st.markdown("#### 📋 Export Options")
-        st.write("• **CSV/JSON Export**: Download your data")
-        st.write("• **API Access**: Programmatic data access")
-        st.write("• **Custom Reports**: Automated reporting")
-        st.write("• **Webhooks**: Real-time notifications")
-        
-        if st.button("📥 Export Data", key="explore_export", use_container_width=True):
-            st.switch_page("pages/data_export.py")
-
-def render_tools_showcase():
-    """Show tools and utilities"""
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 🛠️ Analysis Tools")
-        st.write("• **Custom Dashboards**: Personalized views")
-        st.write("• **Alert System**: Price and volume alerts")
-        st.write("• **Portfolio Tracking**: Track your holdings")
-        st.write("• **Comparison Tools**: Compare with other assets")
-    
-    with col2:
-        st.markdown("#### ⚙️ Advanced Features")
-        st.write("• **API Integration**: Connect your tools")
-        st.write("• **White-label Reports**: Branded analysis")
-        st.write("• **Team Collaboration**: Share insights")
-        st.write("• **Mobile App**: Access anywhere")
-
-# Check if this is the main page being run
 if __name__ == "__main__":
-    # If running the main app, show dashboard content
-    render_dashboard_content()
-    render_footer()
-else:
-    # If imported as a page, run the navigation
     main()
